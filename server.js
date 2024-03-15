@@ -16,7 +16,8 @@ app.use(bodyParser.json());
 
 // Allow CORS for specified origins
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app']
+    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app'],
+    credentials: true
 }));
 
 
