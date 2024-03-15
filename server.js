@@ -98,6 +98,29 @@ app.post('/login', async (req, res) => {
     }
 });
 
+// GET route to retrieve user's API calls left
+app.get('/api-calls', async (req, res) => {
+    // Get user ID from JWT token
+    const token = req.headers.authorization.split(' ')[1];
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.userId;
+
+    try {
+        // Retrieve user's API calls left from the database
+        const { data: apiCalls } = await supabase
+            .from('api_calls')
+            .select('calls')
+            .eq('user_id', userId)
+            .single();
+
+        res.status(200).json({ calls: apiCalls.calls });
+    } catch (error) {
+        console.error('Error retrieving API calls:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 // Start the server
 const PORT = process.env.PORT || 8000;
 app.listen(PORT, () => {
