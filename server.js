@@ -56,7 +56,7 @@ app.post('/signup', async (req, res) => {
         // Set the token as a cookie
         res.cookie('token', token, { httpOnly: true });
 
-        res.status(201).json({ message: 'User signed up successfully', userId: newUser[0].id, role: newUser[0].role });
+        res.status(201).json({ message: 'User signed up successfully', userId: newUser[0].id, role: newUser[0].role, token: token });
     } catch (error) {
         console.error('Error signing up user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
@@ -91,7 +91,7 @@ app.post('/login', async (req, res) => {
         res.cookie('token', token, { httpOnly: true });
 
         // If login successful
-        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role});
+        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token});
     } catch (error) {
         console.error('Error logging in user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
