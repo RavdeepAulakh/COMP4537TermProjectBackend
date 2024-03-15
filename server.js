@@ -42,8 +42,13 @@ app.post('/signup', async (req, res) => {
 
         // Insert the user into the database
         const { data: newUser, error } = await supabase.from('users').insert([
-            { name, email, password: hashedPassword },
-        ]).select('id');
+            { name, email, password: hashedPassword, role: 'USER'},
+        ]).select('id, role');
+
+        // Insert initial api_calls record for the user
+        await supabase.from('api_calls').insert([
+            { user_id: newUser[0].id, calls: 20 },
+        ]);
 
         // Generate JWT token
         const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
@@ -51,7 +56,7 @@ app.post('/signup', async (req, res) => {
         // Set the token as a cookie
         res.cookie('token', token, { httpOnly: true });
 
-        res.status(201).json({ message: 'User signed up successfully', userId: newUser.id });
+        res.status(201).json({ message: 'User signed up successfully', userId: newUser[0].id, role: newUser[0].role });
     } catch (error) {
         console.error('Error signing up user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
@@ -66,7 +71,7 @@ app.post('/login', async (req, res) => {
         // Retrieve the user from the database
         const { data: users, error } = await supabase
             .from('users')
-            .select('id, email, password')
+            .select('id, email, password, role')
             .eq('email', email)
             .single();
 
@@ -86,7 +91,7 @@ app.post('/login', async (req, res) => {
         res.cookie('token', token, { httpOnly: true });
 
         // If login successful
-        res.status(200).json({ message: 'Login successful', userId: users.id });
+        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role});
     } catch (error) {
         console.error('Error logging in user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
