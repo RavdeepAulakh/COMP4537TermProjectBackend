@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const cors = require('cors');
 
 const app = express();
 const supabaseUrl = 'https://eiwoxrdrysltelcwznyl.supabase.co'; // Your Supabase URL
@@ -12,6 +13,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
+
+// Allow CORS for specified origins
+app.use(cors({
+    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app']
+}));
+
 
 // POST route for sign up
 app.post('/signup', async (req, res) => {
