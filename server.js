@@ -50,13 +50,7 @@ app.post('/signup', async (req, res) => {
             { user_id: newUser[0].id, calls: 20 },
         ]);
 
-        // Generate JWT token
-        const token = jwt.sign({ userId: newUser.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
-
-        // Set the token as a cookie
-        res.cookie('token', token, { httpOnly: true });
-
-        res.status(201).json({ message: 'User signed up successfully', userId: newUser[0].id, role: newUser[0].role, token: token });
+        res.status(201).json({ message: 'User signed up successfully' });
     } catch (error) {
         console.error('Error signing up user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
@@ -106,36 +100,14 @@ app.get('/api-calls', async (req, res) => {
     const userId = decodedToken.userId;
 
     try {
-        let apiCalls;
-        let retries = 3; // Number of retries
-        let delay = 1000; // Delay in milliseconds between retries
+        // Retrieve user's API calls left from the database
+        const { data: apiCalls } = await supabase
+            .from('api_calls')
+            .select('calls')
+            .eq('user_id', userId)
+            .single();
 
-        while (retries > 0) {
-            // Retrieve user's API calls left from the database
-            const response = await supabase
-                .from('api_calls')
-                .select('calls')
-                .eq('user_id', userId)
-                .single();
-
-            apiCalls = response.data;
-
-            if (apiCalls) {
-                // If data is retrieved successfully, break out of the loop
-                break;
-            } else {
-                // If data is not retrieved, decrement retries and wait for a short delay
-                retries--;
-                await new Promise(resolve => setTimeout(resolve, delay));
-            }
-        }
-
-        // Check if data is retrieved successfully
-        if (apiCalls) {
-            res.status(200).json({ calls: apiCalls.calls });
-        } else {
-            throw new Error('Unable to retrieve API calls data');
-        }
+        res.status(200).json({ calls: apiCalls.calls });
     } catch (error) {
         console.error('Error retrieving API calls:', error.message);
         res.status(500).json({ error: 'Internal server error' });
