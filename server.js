@@ -5,11 +5,14 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+const sendEmail = require("./js/email.js");
 
 const app = express();
+
 const supabaseUrl = 'https://eiwoxrdrysltelcwznyl.supabase.co'; // Your Supabase URL
 const supabaseKey = process.env.SUPABASE_KEY; // Your Supabase Key
 const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
@@ -113,6 +116,122 @@ app.get('/api-calls', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
+app.post('/password-recovery', async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', email)
+            .single();
+        if (error) {
+            throw new Error('Error retrieving user from database');
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: 'Email not registered', success: false });
+        }
+
+        const code = Math.floor(100000 + Math.random() * 900000);
+
+        // Update the user's recovery_code in the database
+        const { error: updateError } = await supabase
+            .from('users')
+            .update({ recovery_code: code })
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw new Error('Error updating recovery code in database');
+        }
+
+        await sendEmail(email, code);
+
+        res.json({ message: 'Email sent successfully!', success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error sending email', success: false });
+    }
+});
+
+
+app.post('/verify-code', async (req, res) => {
+    const { email, code } = req.body;
+
+    try {
+        // Retrieve the user and their recovery code
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('recovery_code')
+            .eq('email', email)
+            .single();
+
+        if (error) {
+            throw new Error('Error retrieving user from database');
+        }
+
+        if (!user) {
+            return res.status(404).json({ message: 'Email not registered', success: false });
+        }
+
+        // Check if the provided code matches the stored recovery code
+        if (user.recovery_code !== code.toString()) {
+            return res.status(401).json({ message: 'Invalid code', success: false });
+        }
+
+        res.json({ message: 'Code verified successfully!', success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error verifying code', success: false });
+    }
+});
+
+
+app.post('/set-password', async (req, res) => {
+    const {email, code, newPassword} = req.body;
+
+    try {
+        // Retrieve the user and their recovery code
+        const {data: user, error} = await supabase
+            .from('users')
+            .select('id, recovery_code')
+            .eq('email', email)
+            .single();
+
+        if (error) {
+            throw new Error('Error retrieving user from database');
+        }
+
+        if (!user) {
+            return res.status(404).json({message: 'Email not registered', success: false});
+        }
+
+        // Check if the provided code matches the stored recovery code
+        if (user.recovery_code !== code.toString()) {
+            return res.status(401).json({message: 'Invalid code', success: false});
+        }
+
+        // Hash the new password
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+        // Update the user's password in the database and clear the recovery code
+        const {error: updateError} = await supabase
+            .from('users')
+            .update({password: hashedPassword, recovery_code: null})
+            .eq('id', user.id);
+
+        if (updateError) {
+            throw new Error('Unable to update password');
+        }
+
+        res.json({message: 'Password has been reset successfully', success: true});
+    } catch (error) {
+        console.error(error);
+        res.json({message: 'Error resetting password', success: false});
+    }
+});
+
 
 
 // Start the server
