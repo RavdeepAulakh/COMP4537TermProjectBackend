@@ -5,7 +5,6 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
-const axios = require('axios');
 const app = express();
 const supabaseUrl = 'https://eiwoxrdrysltelcwznyl.supabase.co'; // Your Supabase URL
 const supabaseKey = process.env.SUPABASE_KEY; // Your Supabase Key
@@ -172,26 +171,6 @@ app.get('/admin', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
-
-app.post('/v1/llm', async (req, res) => {
-    try {
-        const { input } = req.body;
-
-        // Make a request to the LLM endpoint with the user's text
-        const response = await axios.post('https://6955-24-84-205-84.ngrok-free.app/summarize', { text: input });
-
-        // Extract the summary text from the response data
-        const summaryText = response.data[0]?.summary_text || 'No summary available';
-
-        // Send the summary text to the frontend
-        res.status(200).json({ summary: summaryText });
-    } catch (error) {
-        console.error('Error fetching data from LLM:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
-    }
-});
-
 
 // Start the server
 const PORT = process.env.PORT || 8000;
