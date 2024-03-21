@@ -22,6 +22,10 @@
       {
         "src": "/admin",
         "dest": "server.js"
+      },
+      {
+        "src": "/v1/llm",
+        "dest": "server.js"
       }
     ]
   }  
