@@ -184,7 +184,6 @@ app.post('/verify-code', async (req, res) => {
 app.post('/reset-password', async (req, res) => {
     const { email, code, newPassword } = req.body;
 
-    
     try {
         // Retrieve the user and their recovery code
         const { data: user, error } = await supabase
