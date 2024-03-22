@@ -25,7 +25,7 @@ async function sendEmail(email, code) {
     });
 
     const info = await transporter.sendMail({
-        from: `"Personal Website" <${process.env.NODEMAILER_EMAIL}>`,
+        from: `"Final Projects" <${process.env.NODEMAILER_EMAIL}>`,
         to: email,
         subject: `For password reset`,
         html: html,

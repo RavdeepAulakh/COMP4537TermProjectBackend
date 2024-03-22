@@ -137,14 +137,13 @@ app.post('/password-recovery', async (req, res) => {
         const code = Math.floor(100000 + Math.random() * 900000);
 
         // Update the user's recovery_code in the database
-        const { error: updateError } = await supabase
-            .from('users')
-            .update({ recovery_code: code })
-            .eq('id', user.id);
-
-        if (updateError) {
-            throw new Error('Error updating recovery code in database');
-        }
+        const { error: insertError } = await supabase
+        .from('reset_password')
+        .upsert(
+            [{ email: email, reset_code: code }],
+            { onConflict: ['email'], ignoreDuplicates: false }
+        );
+    
 
         await sendEmail(email, code);
 
@@ -160,27 +159,21 @@ app.post('/verify-code', async (req, res) => {
     const { email, code } = req.body;
 
     try {
-        // Retrieve the user and their recovery code
-        const { data: user, error } = await supabase
-            .from('users')
-            .select('recovery_code')
+        // Retrieve the user and their reset code
+        const { data: userCode, error } = await supabase
+            .from('reset_password')
+            .select('reset_code')
             .eq('email', email)
             .single();
 
-        if (error) {
-            throw new Error('Error retrieving user from database');
-        }
+        
 
-        if (!user) {
-            return res.status(404).json({ message: 'Email not registered', success: false });
-        }
-
-        // Check if the provided code matches the stored recovery code
-        if (user.recovery_code !== code.toString()) {
+        if (userCode.reset_code != code) {
             return res.status(401).json({ message: 'Invalid code', success: false });
         }
-
+        
         res.json({ message: 'Code verified successfully!', success: true });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Error verifying code', success: false });
@@ -188,49 +181,39 @@ app.post('/verify-code', async (req, res) => {
 });
 
 
-app.post('/set-password', async (req, res) => {
-    const {email, code, newPassword} = req.body;
+app.post('/reset-password', async (req, res) => {
+    const { email, code, newPassword } = req.body;
 
+    
     try {
         // Retrieve the user and their recovery code
-        const {data: user, error} = await supabase
+        const { data: user, error } = await supabase
             .from('users')
-            .select('id, recovery_code')
+            .select('id')
             .eq('email', email)
             .single();
 
-        if (error) {
-            throw new Error('Error retrieving user from database');
-        }
-
-        if (!user) {
-            return res.status(404).json({message: 'Email not registered', success: false});
-        }
-
-        // Check if the provided code matches the stored recovery code
-        if (user.recovery_code !== code.toString()) {
-            return res.status(401).json({message: 'Invalid code', success: false});
-        }
 
         // Hash the new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
 
         // Update the user's password in the database and clear the recovery code
-        const {error: updateError} = await supabase
+        const { error: updateError } = await supabase
             .from('users')
-            .update({password: hashedPassword, recovery_code: null})
+            .update({ password: hashedPassword })
             .eq('id', user.id);
 
         if (updateError) {
             throw new Error('Unable to update password');
         }
 
-        res.json({message: 'Password has been reset successfully', success: true});
+        res.json({ message: 'Password has been reset successfully', success: true });
     } catch (error) {
         console.error(error);
-        res.json({message: 'Error resetting password', success: false});
+        res.status(500).json({ message: 'Error resetting password', success: false });
     }
 });
+
 
 
 
