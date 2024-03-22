@@ -5,6 +5,7 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cors = require('cors');
+
 const sendEmail = require("./js/email.js");
 
 const app = express();
@@ -214,6 +215,66 @@ app.post('/reset-password', async (req, res) => {
 });
 
 
+
+
+// GET route to retrieve all users' API calls data (accessible only to admin)
+app.get('/admin', async (req, res) => {
+    // Check if the user is logged in as an admin
+    const token = req.headers.authorization.split(' ')[1];
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.userId;
+
+    try {
+        // Check if the user is an admin
+        const { data: user, error } = await supabase
+            .from('users')
+            .select('role', 'name')
+            .eq('id', userId)
+            .single();
+
+        if (error) {
+            throw new Error('Error retrieving user information');
+        }
+
+        if (!user || user.role !== 'ADMIN') {
+            return res.status(403).json({ error: 'Unauthorized access' });
+        }
+
+        // Retrieve all users' API calls data from the database
+        const { data: allApiCalls, error: apiCallsError } = await supabase
+            .from('api_calls')
+            .select('user_id, calls');
+
+        if (apiCallsError) {
+            throw new Error('Error retrieving API calls data');
+        }
+
+        // Fetch usernames for each user ID
+        const apiCallsWithUsernames = await Promise.all(
+            allApiCalls.map(async (apiCall) => {
+                const { data: userData, error: userError } = await supabase
+                    .from('users')
+                    .select('name')
+                    .eq('id', apiCall.user_id)
+                    .single();
+
+                if (userError) {
+                    throw new Error('Error retrieving username');
+                }
+
+                return {
+                    username: userData.name,
+                    calls: apiCall.calls
+                };
+            })
+        );
+
+        res.status(200).json({ apiCalls: apiCallsWithUsernames });
+    } catch (error) {
+        console.error('Error retrieving API calls:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
 
 
 // Start the server

@@ -18,6 +18,10 @@
       {
         "src": "/api-calls",
         "dest": "server.js"
+      },
+      {
+        "src": "/admin",
+        "dest": "server.js"
       }
     ]
   }  
