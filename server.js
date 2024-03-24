@@ -181,7 +181,7 @@ app.post('/verify-code', async (req, res) => {
 });
 
 
-app.post('/reset-password', async (req, res) => {
+app.patch('/reset-password', async (req, res) => {
     const { email, code, newPassword } = req.body;
 
     try {
