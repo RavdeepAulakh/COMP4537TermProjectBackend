@@ -182,7 +182,7 @@ app.post('/verify-code', async (req, res) => {
 });
 
 
-app.post('/reset-password', async (req, res) => {
+app.patch('/reset-password', async (req, res) => {
     const { email, code, newPassword } = req.body;
 
     try {
@@ -213,6 +213,30 @@ app.post('/reset-password', async (req, res) => {
         res.status(500).json({ message: 'Error resetting password', success: false });
     }
 });
+
+app.delete('/delete-row', async (req, res) => {
+    const { email } = req.body;
+
+    try {
+        // Delete the user's recovery code from the database
+        const { error: deleteError } = await supabase
+            .from('reset_password')
+            .delete()
+            .eq('email', email);
+
+        if (deleteError) {
+            throw new Error('Unable to delete recovery code');
+        }
+
+        res.json({ message: 'Row deleted successfully', success: true });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ message: 'Error deleting row', success: false });
+    }
+});
+
+
+
 
 // GET route to retrieve all users' API calls data (accessible only to admin)
 app.get('/admin', async (req, res) => {

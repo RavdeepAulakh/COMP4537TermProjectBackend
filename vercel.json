@@ -38,6 +38,10 @@
       {
         "src": "/v1/api-calls-down",
         "dest":"server.js"
+      },
+      {
+        "src": "/delete-row",
+        "dest":"server.js"
       }
     ]
   }  
