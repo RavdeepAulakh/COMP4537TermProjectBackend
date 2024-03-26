@@ -297,6 +297,50 @@ app.get('/admin', async (req, res) => {
     }
 });
 
+// PATCH route to decrement user's API calls by one
+app.patch('/v1/api-calls-down', async (req, res) => {
+    // Check if the user is logged in as an admin
+    const token = req.headers.authorization.split(' ')[1];
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.userId;
+
+    try {
+        // Retrieve user's current API calls count from the database
+        const { data: userData, error } = await supabase
+            .from('api_calls')
+            .select('calls')
+            .eq('user_id', userId)
+            .single();
+
+        if (error) {
+            throw new Error('Error retrieving user data');
+        }
+
+        // Check if the user has any API calls left
+        if (userData.calls === 0) {
+            return res.status(403).json({ error: 'No API calls left' });
+        }
+
+        // Decrement API calls count by one
+        const newCallsCount = userData.calls - 1;
+
+        // Update user's API calls count in the database
+        const { updateError } = await supabase
+            .from('api_calls')
+            .update({ calls: newCallsCount })
+            .eq('user_id', userId);
+
+        if (updateError) {
+            throw new Error('Error updating API calls count');
+        }
+
+        res.status(200).json({ message: 'API calls decremented successfully' });
+    } catch (error) {
+        console.error('Error decrementing API calls:', error.message);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
 
 // Start the server
 const PORT = process.env.PORT || 8000;

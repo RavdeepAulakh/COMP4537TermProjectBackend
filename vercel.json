@@ -22,6 +22,22 @@
       {
         "src": "/admin",
         "dest": "server.js"
+      },
+      {
+        "src": "/password-recovery",
+        "dest": "server.js"
+      },
+      {
+        "src": "/verify-code",
+        "dest": "server.js"
+      },
+      {
+        "src": "/reset-password",
+        "dest":"server.js"
+      },
+      {
+        "src": "/v1/api-calls-down",
+        "dest":"server.js"
       }
     ]
   }  
