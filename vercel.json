@@ -45,11 +45,11 @@
       },
       {
         "src": "/v1/docs/(.*)",  
-        "dest": "html/$1"  
+        "dest": "server.js"  
       },
       {
         "src": "/v1/docs",
-        "dest": "html/index.html" 
+        "dest": "server.js" 
       }
     ]
   }  
