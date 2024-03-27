@@ -45,7 +45,11 @@
       },
       {
         "src": "/v1/docs/(.*)",  
-        "dest": "/html/index.html"  
+        "dest": "html/$1"  
+      },
+      {
+        "src": "/v1/docs",
+        "dest": "html/index.html" 
       }
     ]
   }  
