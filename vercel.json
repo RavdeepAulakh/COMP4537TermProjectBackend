@@ -45,7 +45,7 @@
       },
       {
         "src": "/v1/docs/(.*)",  
-        "dest": "html/$1"  
+        "dest": "html/index.html"  
       }
     ]
   }  
