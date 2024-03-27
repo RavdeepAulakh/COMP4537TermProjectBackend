@@ -364,7 +364,12 @@ app.patch('/v1/api-calls-down', async (req, res) => {
     }
 });
 
-app.use('/v1/docs', express.static(path.join(__dirname, 'html')));
+// app.use('/v1/docs', express.static(path.join(__dirname, 'html')));
+
+// GET endpoint to serve the index.html file
+app.get('/v1/docs', (req, res) => {
+    res.sendFile(path.join(__dirname, 'html', 'index.html'));
+});
 
 // Start the server
 const PORT = process.env.PORT || 8000;
