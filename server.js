@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 const jwt = require('jsonwebtoken');
+const cookieParser = require('cookie-parser');
 const cors = require('cors');
 
 const sendEmail = require("./js/email.js");
@@ -14,6 +15,8 @@ const supabaseUrl = 'https://eiwoxrdrysltelcwznyl.supabase.co'; // Your Supabase
 const supabaseKey = process.env.SUPABASE_KEY; // Your Supabase Key
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+app.use(cookieParser());
+
 
 // Middleware to parse JSON bodies
 app.use(bodyParser.json());
@@ -23,6 +26,19 @@ app.use(cors({
     origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app'],
     credentials: true
 }));
+
+const extractTokenFromCookie = (req, res, next) => {
+    if (req.cookies && req.cookies.token) {
+        req.headers.authorization = `Bearer ${req.cookies.token}`;
+        console.log('Token extracted from cookie:', req.cookies.token);
+    } else {
+        console.log('No token found in cookies');
+    }
+    next();
+};
+
+
+app.use(extractTokenFromCookie);
 
 
 // POST route for sign up
@@ -86,7 +102,7 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign({ userId: users.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Set the token as a cookie
-        res.cookie('token', token, { httpOnly: true });
+        res.cookie('token', token, { httpOnly: true, sameSite: 'None', secure: true, path: '/' });
 
         // If login successful
         res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token});
@@ -98,12 +114,17 @@ app.post('/login', async (req, res) => {
 
 // GET route to retrieve user's API calls left
 app.get('/api-calls', async (req, res) => {
+    // Check if authorization header is present
+    if (!req.headers.authorization) {
+        return res.status(401).json({ error: 'Authorization header is missing' });
+    }
+
     // Get user ID from JWT token
     const token = req.headers.authorization.split(' ')[1];
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decodedToken.userId;
-
+    // Verify the token and extract the user ID
     try {
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decodedToken.userId;
         // Retrieve user's API calls left from the database
         const { data: apiCalls } = await supabase
             .from('api_calls')
@@ -113,10 +134,11 @@ app.get('/api-calls', async (req, res) => {
 
         res.status(200).json({ calls: apiCalls.calls });
     } catch (error) {
-        console.error('Error retrieving API calls:', error.message);
+        console.error('Error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 app.post('/password-recovery', async (req, res) => {
     const { email } = req.body;
