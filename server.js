@@ -86,7 +86,7 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign({ userId: users.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Set the token as a cookie
-        res.cookie('token', token, { httpOnly: true, sameSite: none, secure: true });
+        res.cookie('token', token, { httpOnly: true, sameSite: 'none', secure: true });
 
         // If login successful
         res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token});
