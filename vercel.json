@@ -44,8 +44,8 @@
         "dest":"server.js"
       },
       {
-        "src": "/v1/docs",
-        "dest": "server.js"
+        "src": "/v1/docs/(.*)",  
+        "dest": "html/$1"  
       }
     ]
   }  
