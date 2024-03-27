@@ -6,6 +6,7 @@ require('dotenv').config();
 const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
+const path = require('path');
 
 const sendEmail = require("./js/email.js");
 
@@ -363,6 +364,7 @@ app.patch('/v1/api-calls-down', async (req, res) => {
     }
 });
 
+app.use('/v1/docs', express.static(path.join(__dirname, 'html')));
 
 // Start the server
 const PORT = process.env.PORT || 8000;

@@ -42,6 +42,10 @@
       {
         "src": "/delete-row",
         "dest":"server.js"
+      },
+      {
+        "src": "/v1/docs",
+        "dest": "server.js"
       }
     ]
   }  
