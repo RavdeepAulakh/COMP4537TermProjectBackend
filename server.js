@@ -92,7 +92,7 @@ app.post('/login', async (req, res) => {
 
         // Set the token as a cookie
         res.writeHead(200, {
-            'Set-Cookie': `token=${token}; HttpOnly;`,
+            'Set-Cookie': `token=${token}; HttpOnly; Secure;`,
             'Content-Type': 'application/json',
           });
 
