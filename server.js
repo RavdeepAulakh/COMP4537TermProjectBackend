@@ -24,8 +24,9 @@ app.use(bodyParser.json());
 
 // Allow CORS for specified origins
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app', 'https://6ceb-142-232-219-53.ngrok-free.app'],
-    credentials: true
+    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app'],
+    credentials: true,
+    exposedHeaders: ["set-cookie"]
 }));
 
 // POST route for sign up
@@ -92,7 +93,7 @@ app.post('/login', async (req, res) => {
 
         // Set the token as a cookie
         res.writeHead(200, {
-            'Set-Cookie': `token=${token}; HttpOnly; Secure;`,
+            'Set-Cookie': `token=${token}; HttpOnly;`,
             'Content-Type': 'application/json',
           });
 
