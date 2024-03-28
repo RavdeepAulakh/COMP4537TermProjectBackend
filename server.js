@@ -83,25 +83,27 @@ const updateMethodCall = async (method, endpoint) => {
 };
 
 const addRequestToUser = async (userId, email) => {
+    console.log('Adding request to user:', userId, email)
     try {
-        const { data: userTotalCall, error: userTotalCallError } = await supabase
+        const { data: userTotalCalls, error: userTotalCallError } = await supabase
             .from('user_total_call')
-            .select('request')
-            .eq('user_id', userId)
-            .single();
+            .select('total_request')
+            .eq('id', userId);
 
         if (userTotalCallError) {
+            console.error('Supabase error:', userTotalCallError.message);
             throw new Error('Error retrieving user total call data');
         }
 
         let newRequestCount;
-        if (userTotalCall) {
+        if (userTotalCalls.length > 0) {
             // User exists, increment request count
-            newRequestCount = userTotalCall.request + 1;
+            const userTotalCall = userTotalCalls[0]; // Assuming 'id' is unique, there should be only one row
+            newRequestCount = userTotalCall.total_request + 1;
             const { error: updateError } = await supabase
                 .from('user_total_call')
-                .update({ request: newRequestCount })
-                .eq('user_id', userId);
+                .update({ total_request: newRequestCount })
+                .eq('id', userId);
 
             if (updateError) {
                 throw new Error('Error updating user total call count');
@@ -111,9 +113,10 @@ const addRequestToUser = async (userId, email) => {
             newRequestCount = 1;
             const { error: insertError } = await supabase
                 .from('user_total_call')
-                .insert([{ user_id: userId, email: email, request: newRequestCount }]);
+                .insert([{ id: userId, email: email, total_request: newRequestCount }]);
 
             if (insertError) {
+                console.error('Supabase insertion error:', insertError.message, insertError.details);
                 throw new Error('Error inserting user total call data into database');
             }
         }
@@ -170,6 +173,7 @@ app.post('/signup', async (req, res) => {
 
 // POST route for login
 app.post('/login', async (req, res) => {
+    console.log('Logging in called')
     const { email, password } = req.body;
 
     try {
@@ -194,6 +198,13 @@ app.post('/login', async (req, res) => {
 
         // Set the token as a cookie
         res.cookie('token', token, { httpOnly: true, sameSite: 'None', secure: true, path: '/' });
+
+        const methodCallResult = await updateMethodCall('POST', '/login');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
+            // Decide how you want to handle this error
+        }
 
         // Update the total request count for the user
         const requestResult = await addRequestToUser(users.id, email);
@@ -419,13 +430,6 @@ app.get('/admin', async (req, res) => {
         decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         userId = decodedToken.userId;
 
-        // Update the total request count for the user
-        const requestResult = await addRequestToUser(userId, decodedToken.email);
-        if (requestResult.error) {
-            console.error('Error updating user request count:', requestResult.error);
-            // Decide how you want to handle this error
-        }
-
         // Check if the user is an admin
         const { data: user, error } = await supabase
             .from('users')
@@ -450,7 +454,25 @@ app.get('/admin', async (req, res) => {
             throw new Error('Error retrieving API calls data');
         }
 
-        // Fetch usernames for each user ID
+        // Retrieve data from user_total_call table
+        const { data: allUserTotalCalls, error: userTotalCallsError } = await supabase
+            .from('user_total_call')
+            .select('*');
+
+        if (userTotalCallsError) {
+            throw new Error('Error retrieving user total calls data');
+        }
+
+        // Retrieve data from method_call table
+        const { data: allMethodCalls, error: methodCallsError } = await supabase
+            .from('method_call')
+            .select('*');
+
+        if (methodCallsError) {
+            throw new Error('Error retrieving method calls data');
+        }
+
+        // Fetch usernames for each user ID in the API calls data
         const apiCallsWithUsernames = await Promise.all(
             allApiCalls.map(async (apiCall) => {
                 const { data: userData, error: userError } = await supabase
@@ -470,12 +492,28 @@ app.get('/admin', async (req, res) => {
             })
         );
 
-        res.status(200).json({ apiCalls: apiCallsWithUsernames });
+        // Structure the response as a JSON object
+        const response = {
+            apiCalls: apiCallsWithUsernames,
+            totalCalls: allUserTotalCalls,
+            methodCalls: allMethodCalls
+        };
+
+        console.log('Response:', response);
+
+        // Update the total request count for the user
+        const requestResult = await addRequestToUser(userId, decodedToken.email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+        res.status(200).json(response);
     } catch (error) {
         console.error('Error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 
 // PATCH route to decrement user's API calls by one
