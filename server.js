@@ -29,15 +29,6 @@ app.use(cors({
     exposedHeaders: ["set-cookie"]
 }));
 
-// Add middleware to set Access-Control-Allow-Origin header
-app.use((req, res, next) => {
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    next();
-});
-
 // POST route for sign up
 app.post('/signup', async (req, res) => {
     const { name, email, password } = req.body;
@@ -102,7 +93,7 @@ app.post('/login', async (req, res) => {
 
         // Set the token as a cookie
         res.writeHead(200, {
-            'Set-Cookie': `token=${token}; HttpOnly; SameSite=None;`,
+            'Set-Cookie': `token=${token}; HttpOnly; SameSite=None; Secure;`,
             'Content-Type': 'application/json',
           });
 
