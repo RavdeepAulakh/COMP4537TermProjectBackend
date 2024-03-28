@@ -41,9 +41,58 @@ const extractTokenFromCookie = (req, res, next) => {
 
 app.use(extractTokenFromCookie);
 
+const updateMethodCall = async (method, endpoint) => {
+    try {
+        const { data: methodCalls, error: methodCallError } = await supabase
+            .from('method_call')
+            .select('*')
+            .eq('method', method)
+            .eq('endpoint', endpoint);
+
+        if (methodCallError) {
+            throw new Error('Error fetching method call data from database');
+        }
+
+        if (methodCalls.length > 0) {
+            // Row exists, increment request count
+            const { error: updateError } = await supabase
+                .from('method_call')
+                .update({ request: methodCalls[0].request + 1 })
+                .eq('method', method)
+                .eq('endpoint', endpoint);
+
+            if (updateError) {
+                throw new Error('Error updating method call data in database');
+            }
+        } else {
+            // Row does not exist, create a new one
+            const { error: insertError } = await supabase
+                .from('method_call')
+                .insert([{ method: method, endpoint: endpoint, request: 1 }]);
+
+            if (insertError) {
+                throw new Error('Error inserting method call data into database');
+            }
+        }
+
+        return { success: true }; // Return a success object
+    } catch (error) {
+        console.error(error);
+        return { error: error.message }; // Return an error object with the error message
+    }
+};
+
+
 
 // POST route for sign up
 app.post('/signup', async (req, res) => {
+    const methodCallResult = await updateMethodCall('POST', '/signup');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { name, email, password } = req.body;
 
     try {
@@ -79,6 +128,7 @@ app.post('/signup', async (req, res) => {
 });
 
 // POST route for login
+// POST route for login
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -105,8 +155,15 @@ app.post('/login', async (req, res) => {
         // Set the token as a cookie
         res.cookie('token', token, { httpOnly: true, sameSite: 'None', secure: true, path: '/' });
 
+        const methodCallResult = await updateMethodCall('POST', '/login');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
         // If login successful
-        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token});
+        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token });
     } catch (error) {
         console.error('Error logging in user:', error.message);
         res.status(500).json({ error: 'Internal server error' });
@@ -115,6 +172,15 @@ app.post('/login', async (req, res) => {
 
 // GET route to retrieve user's API calls left
 app.get('/api-calls', async (req, res) => {
+
+    const methodCallResult = await updateMethodCall('GET', '/api-calls');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
+
     // Check if authorization header is present
     if (!req.headers.authorization) {
         return res.status(401).json({ error: 'Authorization header is missing' });
@@ -142,6 +208,14 @@ app.get('/api-calls', async (req, res) => {
 
 
 app.post('/password-recovery', async (req, res) => {
+
+    const methodCallResult = await updateMethodCall('POST', '/password-recovery');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email } = req.body;
 
     try {
@@ -180,6 +254,13 @@ app.post('/password-recovery', async (req, res) => {
 
 
 app.post('/verify-code', async (req, res) => {
+    const methodCallResult = await updateMethodCall('POST', '/verify-code');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email, code } = req.body;
 
     try {
@@ -206,6 +287,13 @@ app.post('/verify-code', async (req, res) => {
 
 
 app.patch('/reset-password', async (req, res) => {
+    const methodCallResult = await updateMethodCall('PATCH', '/reset-password');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email, code, newPassword } = req.body;
 
     try {
@@ -238,6 +326,13 @@ app.patch('/reset-password', async (req, res) => {
 });
 
 app.delete('/delete-row', async (req, res) => {
+    const methodCallResult = await updateMethodCall('DELETE', '/delete-row');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email } = req.body;
 
     try {
@@ -263,6 +358,13 @@ app.delete('/delete-row', async (req, res) => {
 
 // GET route to retrieve all users' API calls data (accessible only to admin)
 app.get('/admin', async (req, res) => {
+    const methodCallResult = await updateMethodCall('GET', '/admin');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     // Check if the user is logged in as an admin
     const token = req.headers.authorization.split(' ')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
@@ -322,6 +424,13 @@ app.get('/admin', async (req, res) => {
 
 // PATCH route to decrement user's API calls by one
 app.patch('/v1/api-calls-down', async (req, res) => {
+    const methodCallResult = await updateMethodCall('PATCH', '/v1/api-calls-down');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     // Check if the user is logged in as an admin
     const token = req.headers.authorization.split(' ')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
@@ -368,6 +477,13 @@ app.patch('/v1/api-calls-down', async (req, res) => {
 
 // GET endpoint to serve the index.html file
 app.get('/v1/docs', (req, res) => {
+    const methodCallResult = updateMethodCall('GET', '/v1/docs');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     res.sendFile(path.join(__dirname, 'html', 'index.html'));
 });
 
