@@ -28,18 +28,18 @@ app.use(cors({
     credentials: true
 }));
 
-const extractTokenFromCookie = (req, res, next) => {
-    if (req.cookies && req.cookies.token) {
-        req.headers.authorization = `Bearer ${req.cookies.token}`;
-        console.log('Token extracted from cookie:', req.cookies.token);
-    } else {
-        console.log('No token found in cookies');
-    }
-    next();
-};
+// const extractTokenFromCookie = (req, res, next) => {
+//     if (req.cookies && req.cookies.token) {
+//         req.headers.authorization = `Bearer ${req.cookies.token}`;
+//         console.log('Token extracted from cookie:', req.cookies.token);
+//     } else {
+//         console.log('No token found in cookies');
+//     }
+//     next();
+// };
 
 
-app.use(extractTokenFromCookie);
+// app.use(extractTokenFromCookie);
 
 const updateMethodCall = async (method, endpoint) => {
     try {
@@ -82,7 +82,48 @@ const updateMethodCall = async (method, endpoint) => {
     }
 };
 
+const addRequestToUser = async (userId, email) => {
+    try {
+        const { data: userTotalCall, error: userTotalCallError } = await supabase
+            .from('user_total_call')
+            .select('request')
+            .eq('user_id', userId)
+            .single();
 
+        if (userTotalCallError) {
+            throw new Error('Error retrieving user total call data');
+        }
+
+        let newRequestCount;
+        if (userTotalCall) {
+            // User exists, increment request count
+            newRequestCount = userTotalCall.request + 1;
+            const { error: updateError } = await supabase
+                .from('user_total_call')
+                .update({ request: newRequestCount })
+                .eq('user_id', userId);
+
+            if (updateError) {
+                throw new Error('Error updating user total call count');
+            }
+        } else {
+            // User does not exist, create a new entry
+            newRequestCount = 1;
+            const { error: insertError } = await supabase
+                .from('user_total_call')
+                .insert([{ user_id: userId, email: email, request: newRequestCount }]);
+
+            if (insertError) {
+                throw new Error('Error inserting user total call data into database');
+            }
+        }
+
+        return { success: true, requestCount: newRequestCount };
+    } catch (error) {
+        console.error(error);
+        return { error: error.message };
+    }
+};
 
 // POST route for sign up
 app.post('/signup', async (req, res) => {
@@ -128,7 +169,6 @@ app.post('/signup', async (req, res) => {
 });
 
 // POST route for login
-// POST route for login
 app.post('/login', async (req, res) => {
     const { email, password } = req.body;
 
@@ -155,10 +195,10 @@ app.post('/login', async (req, res) => {
         // Set the token as a cookie
         res.cookie('token', token, { httpOnly: true, sameSite: 'None', secure: true, path: '/' });
 
-        const methodCallResult = await updateMethodCall('POST', '/login');
-
-        if (methodCallResult.error) {
-            console.error('Error updating method call:', methodCallResult.error);
+        // Update the total request count for the user
+        const requestResult = await addRequestToUser(users.id, email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
             // Decide how you want to handle this error
         }
 
@@ -169,6 +209,7 @@ app.post('/login', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 // GET route to retrieve user's API calls left
 app.get('/api-calls', async (req, res) => {
@@ -192,6 +233,13 @@ app.get('/api-calls', async (req, res) => {
     try {
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         const userId = decodedToken.userId;
+
+        const requestResult = await addRequestToUser(userId, decodedToken.email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+
         // Retrieve user's API calls left from the database
         const { data: apiCalls } = await supabase
             .from('api_calls')
@@ -358,19 +406,26 @@ app.delete('/delete-row', async (req, res) => {
 
 // GET route to retrieve all users' API calls data (accessible only to admin)
 app.get('/admin', async (req, res) => {
-    const methodCallResult = await updateMethodCall('GET', '/admin');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
+    // Check if the user is logged in as an admin
+    if (!req.headers.authorization) {
+        return res.status(401).json({ error: 'Authorization header is missing' });
     }
 
-    // Check if the user is logged in as an admin
     const token = req.headers.authorization.split(' ')[1];
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decodedToken.userId;
+    let decodedToken;
+    let userId;
 
     try {
+        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decodedToken.userId;
+
+        // Update the total request count for the user
+        const requestResult = await addRequestToUser(userId, decodedToken.email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+
         // Check if the user is an admin
         const { data: user, error } = await supabase
             .from('users')
@@ -417,10 +472,11 @@ app.get('/admin', async (req, res) => {
 
         res.status(200).json({ apiCalls: apiCallsWithUsernames });
     } catch (error) {
-        console.error('Error retrieving API calls:', error.message);
+        console.error('Error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 // PATCH route to decrement user's API calls by one
 app.patch('/v1/api-calls-down', async (req, res) => {
