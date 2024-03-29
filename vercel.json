@@ -8,31 +8,31 @@
     ],
     "routes": [
       {
-        "src": "/signup",
+        "src": "/v1/signup",
         "dest": "server.js" 
       },
       {
-        "src": "/login",
+        "src": "/v1/login",
         "dest": "server.js"
       },
       {
-        "src": "/api-calls",
+        "src": "/v1/api-calls",
         "dest": "server.js"
       },
       {
-        "src": "/admin",
+        "src": "/v1/admin",
         "dest": "server.js"
       },
       {
-        "src": "/password-recovery",
+        "src": "/v1/password-recovery",
         "dest": "server.js"
       },
       {
-        "src": "/verify-code",
+        "src": "/v1/verify-code",
         "dest": "server.js"
       },
       {
-        "src": "/reset-password",
+        "src": "/v1/reset-password",
         "dest":"server.js"
       },
       {
@@ -40,7 +40,7 @@
         "dest":"server.js"
       },
       {
-        "src": "/delete-row",
+        "src": "/v1/delete-row",
         "dest":"server.js"
       },
       {

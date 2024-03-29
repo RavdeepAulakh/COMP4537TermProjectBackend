@@ -118,7 +118,7 @@ const addRequestToUser = async (userId, email) => {
 };
 
 // POST route for sign up
-app.post('/signup', async (req, res) => {
+app.post('/v1/signup', async (req, res) => {
     const methodCallResult = await updateMethodCall('POST', '/signup');
 
     if (methodCallResult.error) {
@@ -161,7 +161,7 @@ app.post('/signup', async (req, res) => {
 });
 
 // POST route for login
-app.post('/login', async (req, res) => {
+app.post('/v1/login', async (req, res) => {
     console.log('Logging in called')
     const { email, password } = req.body;
 
@@ -220,7 +220,7 @@ app.post('/login', async (req, res) => {
 
 
 // GET route to retrieve user's API calls left
-app.get('/api-calls', async (req, res) => {
+app.get('/v1/api-calls', async (req, res) => {
 
     const methodCallResult = await updateMethodCall('GET', '/api-calls');
 
@@ -257,7 +257,7 @@ app.get('/api-calls', async (req, res) => {
     }
 });
 
-app.post('/password-recovery', async (req, res) => {
+app.post('/v1/password-recovery', async (req, res) => {
 
     const methodCallResult = await updateMethodCall('POST', '/password-recovery');
 
@@ -303,7 +303,7 @@ app.post('/password-recovery', async (req, res) => {
 });
 
 
-app.post('/verify-code', async (req, res) => {
+app.post('/v1/verify-code', async (req, res) => {
     const methodCallResult = await updateMethodCall('POST', '/verify-code');
 
     if (methodCallResult.error) {
@@ -336,7 +336,7 @@ app.post('/verify-code', async (req, res) => {
 });
 
 
-app.patch('/reset-password', async (req, res) => {
+app.patch('/v1/reset-password', async (req, res) => {
     const methodCallResult = await updateMethodCall('PATCH', '/reset-password');
 
     if (methodCallResult.error) {
@@ -375,7 +375,7 @@ app.patch('/reset-password', async (req, res) => {
     }
 });
 
-app.delete('/delete-row', async (req, res) => {
+app.delete('/v1/delete-row', async (req, res) => {
     const methodCallResult = await updateMethodCall('DELETE', '/delete-row');
 
     if (methodCallResult.error) {
@@ -407,7 +407,7 @@ app.delete('/delete-row', async (req, res) => {
 
 
 // GET route to retrieve all users' API calls data (accessible only to admin)
-app.get('/admin', async (req, res) => {
+app.get('/v1/admin', async (req, res) => {
     // Check if the user is logged in as an admin
     const token = req.headers.cookie.split('=')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
