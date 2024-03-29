@@ -414,8 +414,6 @@ app.get('/admin', async (req, res) => {
     const userId = decodedToken.userId;
 
     try {
-        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-        userId = decodedToken.userId;
 
         // Check if the user is an admin
         const { data: user, error } = await supabase
