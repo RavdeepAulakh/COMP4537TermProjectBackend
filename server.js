@@ -32,13 +32,6 @@ app.use(cors({
 
 // POST route for sign up
 app.post('/v1/signup', async (req, res) => {
-    const methodCallResult = await updateMethodCall('POST', '/v1/signup');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
     const { name, email, password } = req.body;
 
     try {
@@ -58,13 +51,29 @@ app.post('/v1/signup', async (req, res) => {
 
         // Insert the user into the database
         const { data: newUser, error } = await supabase.from('users').insert([
-            { name, email, password: hashedPassword, role: 'USER'},
-        ]).select('id, role');
+            { name, email, password: hashedPassword },
+        ]).select('id');
+
+        // Insert the user role into the users_role table
+        const { error: roleError } = await supabase.from('users_role').insert([
+            { id: newUser[0].id, role: 'USER' },
+        ]);
+
+        if (roleError) {
+            throw new Error('Error assigning role to user');
+        }
 
         // Insert initial api_calls record for the user
         await supabase.from('api_calls').insert([
             { user_id: newUser[0].id, calls: 20 },
         ]);
+
+        const methodCallResult = updateMethodCall('POST', '/v1/signup');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
+            // Decide how you want to handle this error
+        }
 
         res.status(201).json({ message: 'User signed up successfully' });
     } catch (error) {
@@ -73,16 +82,17 @@ app.post('/v1/signup', async (req, res) => {
     }
 });
 
+
 // POST route for login
 app.post('/v1/login', async (req, res) => {
     console.log('Logging in called')
     const { email, password } = req.body;
 
     try {
-        // Retrieve the user from the database
-        const { data: users, error } = await supabase
+        // Retrieve the user and their role from the database
+        const { data: user, error } = await supabase
             .from('users')
-            .select('id, email, password, role')
+            .select('id, email, password, users_role(role)')
             .eq('email', email)
             .single();
 
@@ -92,19 +102,19 @@ app.post('/v1/login', async (req, res) => {
         }
 
         // If user doesn't exist or password is incorrect
-        if (!users || !(await bcrypt.compare(password, users.password))) {
+        if (!user || !(await bcrypt.compare(password, user.password))) {
             res.writeHead(401, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: 'Invalid email or password' }));
         }
 
         // Generate JWT token
-        const token = jwt.sign({ userId: users.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
+        const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Set the token as a cookie
         res.writeHead(200, {
             'Set-Cookie': `token=${token}; HttpOnly; SameSite=None; Secure;`,
             'Content-Type': 'application/json',
-          });
+        });
 
         const methodCallResult = await updateMethodCall('POST', '/v1/login');
 
@@ -114,20 +124,21 @@ app.post('/v1/login', async (req, res) => {
         }
 
         // Update the total request count for the user
-        const requestResult = await addRequestToUser(users.id, email);
+        const requestResult = await addRequestToUser(user.id, email);
         if (requestResult.error) {
             console.error('Error updating user request count:', requestResult.error);
             // Decide how you want to handle this error
         }
 
         // If login successful
-        res.end(JSON.stringify({ message: 'Login successful', userId: users.id, role: users.role, token: token}));
+        res.end(JSON.stringify({ message: 'Login successful', userId: user.id, role: user.users_role.role, token: token}));
     } catch (error) {
         console.error('Error logging in user:', error.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Internal server error' }));
     }
 });
+
 
 
 

@@ -34,6 +34,7 @@ const updateMethodCall = async (method, endpoint) => {
                 .insert([{ method: method, endpoint: endpoint, request: 1 }]);
 
             if (insertError) {
+                console.error(insertError);
                 throw new Error('Error inserting method call data into database');
             }
         }
