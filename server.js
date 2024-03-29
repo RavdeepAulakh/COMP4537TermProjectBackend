@@ -7,7 +7,8 @@ const jwt = require('jsonwebtoken');
 const cookieParser = require('cookie-parser');
 const cors = require('cors');
 const path = require('path');
-
+const { updateMethodCall } = require("./js/methodCall.js");
+const { addRequestToUser } = require("./js/addRequestToUser.js");
 const sendEmail = require("./js/email.js");
 
 const app = express();
@@ -29,97 +30,9 @@ app.use(cors({
     exposedHeaders: ["set-cookie"]
 }));
 
-
-const updateMethodCall = async (method, endpoint) => {
-    try {
-        const { data: methodCalls, error: methodCallError } = await supabase
-            .from('method_call')
-            .select('*')
-            .eq('method', method)
-            .eq('endpoint', endpoint);
-
-        if (methodCallError) {
-            throw new Error('Error fetching method call data from database');
-        }
-
-        if (methodCalls.length > 0) {
-            // Row exists, increment request count
-            const { error: updateError } = await supabase
-                .from('method_call')
-                .update({ request: methodCalls[0].request + 1 })
-                .eq('method', method)
-                .eq('endpoint', endpoint);
-
-            if (updateError) {
-                throw new Error('Error updating method call data in database');
-            }
-        } else {
-            // Row does not exist, create a new one
-            const { error: insertError } = await supabase
-                .from('method_call')
-                .insert([{ method: method, endpoint: endpoint, request: 1 }]);
-
-            if (insertError) {
-                throw new Error('Error inserting method call data into database');
-            }
-        }
-
-        return { success: true }; // Return a success object
-    } catch (error) {
-        console.error(error);
-        return { error: error.message }; // Return an error object with the error message
-    }
-};
-
-const addRequestToUser = async (userId, email) => {
-    console.log('Adding request to user:', userId, email)
-    try {
-        const { data: userTotalCalls, error: userTotalCallError } = await supabase
-            .from('user_total_call')
-            .select('total_request')
-            .eq('id', userId);
-
-        if (userTotalCallError) {
-            console.error('Supabase error:', userTotalCallError.message);
-            throw new Error('Error retrieving user total call data');
-        }
-
-        let newRequestCount;
-        if (userTotalCalls.length > 0) {
-            // User exists, increment request count
-            const userTotalCall = userTotalCalls[0]; // Assuming 'id' is unique, there should be only one row
-            newRequestCount = userTotalCall.total_request + 1;
-            const { error: updateError } = await supabase
-                .from('user_total_call')
-                .update({ total_request: newRequestCount })
-                .eq('id', userId);
-
-            if (updateError) {
-                throw new Error('Error updating user total call count');
-            }
-        } else {
-            // User does not exist, create a new entry
-            newRequestCount = 1;
-            const { error: insertError } = await supabase
-                .from('user_total_call')
-                .insert([{ id: userId, email: email, total_request: newRequestCount }]);
-
-            if (insertError) {
-                console.error('Supabase insertion error:', insertError.message, insertError.details);
-                throw new Error('Error inserting user total call data into database');
-            }
-        }
-
-        return { success: true, requestCount: newRequestCount };
-    } catch (error) {
-        console.error(error);
-        return { error: error.message };
-    }
-};
-
 // POST route for sign up
 app.post('/v1/signup', async (req, res) => {
-    const methodCallResult = await updateMethodCall('POST', '/signup');
+    const methodCallResult = await updateMethodCall('POST', '/v1/signup');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
@@ -193,7 +106,7 @@ app.post('/v1/login', async (req, res) => {
             'Content-Type': 'application/json',
           });
 
-        const methodCallResult = await updateMethodCall('POST', '/login');
+        const methodCallResult = await updateMethodCall('POST', '/v1/login');
 
         if (methodCallResult.error) {
             console.error('Error updating method call:', methodCallResult.error);
@@ -222,7 +135,7 @@ app.post('/v1/login', async (req, res) => {
 // GET route to retrieve user's API calls left
 app.get('/v1/api-calls', async (req, res) => {
 
-    const methodCallResult = await updateMethodCall('GET', '/api-calls');
+    const methodCallResult = await updateMethodCall('GET', '/v1/api-calls');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
@@ -259,7 +172,7 @@ app.get('/v1/api-calls', async (req, res) => {
 
 app.post('/v1/password-recovery', async (req, res) => {
 
-    const methodCallResult = await updateMethodCall('POST', '/password-recovery');
+    const methodCallResult = await updateMethodCall('POST', '/v1/password-recovery');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
@@ -304,7 +217,7 @@ app.post('/v1/password-recovery', async (req, res) => {
 
 
 app.post('/v1/verify-code', async (req, res) => {
-    const methodCallResult = await updateMethodCall('POST', '/verify-code');
+    const methodCallResult = await updateMethodCall('POST', '/v1/verify-code');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
@@ -337,7 +250,7 @@ app.post('/v1/verify-code', async (req, res) => {
 
 
 app.patch('/v1/reset-password', async (req, res) => {
-    const methodCallResult = await updateMethodCall('PATCH', '/reset-password');
+    const methodCallResult = await updateMethodCall('PATCH', '/v1/reset-password');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
@@ -376,7 +289,7 @@ app.patch('/v1/reset-password', async (req, res) => {
 });
 
 app.delete('/v1/delete-row', async (req, res) => {
-    const methodCallResult = await updateMethodCall('DELETE', '/delete-row');
+    const methodCallResult = await updateMethodCall('DELETE', '/v1/delete-row');
 
     if (methodCallResult.error) {
         console.error('Error updating method call:', methodCallResult.error);
