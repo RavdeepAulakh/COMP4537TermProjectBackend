@@ -340,9 +340,9 @@ app.get('/v1/admin', async (req, res) => {
     try {
 
         // Check if the user is an admin
-        const { data: user, error } = await supabase
+        const { data: userRole, error } = await supabase
             .from('users')
-            .select('role', 'name')
+            .select('users_role(role)')
             .eq('id', userId)
             .single();
 
@@ -350,7 +350,7 @@ app.get('/v1/admin', async (req, res) => {
             throw new Error('Error retrieving user information');
         }
 
-        if (!user || user.role !== 'ADMIN') {
+        if (!userRole || userRole.users_role.role !== 'ADMIN') {
             return res.status(403).json({ error: 'Unauthorized access' });
         }
 
@@ -414,6 +414,13 @@ app.get('/v1/admin', async (req, res) => {
         const requestResult = await addRequestToUser(userId, decodedToken.email);
         if (requestResult.error) {
             console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const methodCallResult = await updateMethodCall('GET', '/v1/admin');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
             // Decide how you want to handle this error
         }
         res.status(200).json(response);
