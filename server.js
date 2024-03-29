@@ -29,8 +29,103 @@ app.use(cors({
     exposedHeaders: ["set-cookie"]
 }));
 
+
+const updateMethodCall = async (method, endpoint) => {
+    try {
+        const { data: methodCalls, error: methodCallError } = await supabase
+            .from('method_call')
+            .select('*')
+            .eq('method', method)
+            .eq('endpoint', endpoint);
+
+        if (methodCallError) {
+            throw new Error('Error fetching method call data from database');
+        }
+
+        if (methodCalls.length > 0) {
+            // Row exists, increment request count
+            const { error: updateError } = await supabase
+                .from('method_call')
+                .update({ request: methodCalls[0].request + 1 })
+                .eq('method', method)
+                .eq('endpoint', endpoint);
+
+            if (updateError) {
+                throw new Error('Error updating method call data in database');
+            }
+        } else {
+            // Row does not exist, create a new one
+            const { error: insertError } = await supabase
+                .from('method_call')
+                .insert([{ method: method, endpoint: endpoint, request: 1 }]);
+
+            if (insertError) {
+                throw new Error('Error inserting method call data into database');
+            }
+        }
+
+        return { success: true }; // Return a success object
+    } catch (error) {
+        console.error(error);
+        return { error: error.message }; // Return an error object with the error message
+    }
+};
+
+const addRequestToUser = async (userId, email) => {
+    console.log('Adding request to user:', userId, email)
+    try {
+        const { data: userTotalCalls, error: userTotalCallError } = await supabase
+            .from('user_total_call')
+            .select('total_request')
+            .eq('id', userId);
+
+        if (userTotalCallError) {
+            console.error('Supabase error:', userTotalCallError.message);
+            throw new Error('Error retrieving user total call data');
+        }
+
+        let newRequestCount;
+        if (userTotalCalls.length > 0) {
+            // User exists, increment request count
+            const userTotalCall = userTotalCalls[0]; // Assuming 'id' is unique, there should be only one row
+            newRequestCount = userTotalCall.total_request + 1;
+            const { error: updateError } = await supabase
+                .from('user_total_call')
+                .update({ total_request: newRequestCount })
+                .eq('id', userId);
+
+            if (updateError) {
+                throw new Error('Error updating user total call count');
+            }
+        } else {
+            // User does not exist, create a new entry
+            newRequestCount = 1;
+            const { error: insertError } = await supabase
+                .from('user_total_call')
+                .insert([{ id: userId, email: email, total_request: newRequestCount }]);
+
+            if (insertError) {
+                console.error('Supabase insertion error:', insertError.message, insertError.details);
+                throw new Error('Error inserting user total call data into database');
+            }
+        }
+
+        return { success: true, requestCount: newRequestCount };
+    } catch (error) {
+        console.error(error);
+        return { error: error.message };
+    }
+};
+
 // POST route for sign up
 app.post('/signup', async (req, res) => {
+    const methodCallResult = await updateMethodCall('POST', '/signup');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { name, email, password } = req.body;
 
     try {
@@ -67,6 +162,7 @@ app.post('/signup', async (req, res) => {
 
 // POST route for login
 app.post('/login', async (req, res) => {
+    console.log('Logging in called')
     const { email, password } = req.body;
 
     try {
@@ -97,6 +193,20 @@ app.post('/login', async (req, res) => {
             'Content-Type': 'application/json',
           });
 
+        const methodCallResult = await updateMethodCall('POST', '/login');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        // Update the total request count for the user
+        const requestResult = await addRequestToUser(users.id, email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+
         // If login successful
         res.end(JSON.stringify({ message: 'Login successful', userId: users.id, role: users.role, token: token}));
     } catch (error) {
@@ -108,14 +218,31 @@ app.post('/login', async (req, res) => {
 
 
 
+
 // GET route to retrieve user's API calls left
 app.get('/api-calls', async (req, res) => {
+
+    const methodCallResult = await updateMethodCall('GET', '/api-calls');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
+
     // Get user ID from JWT token
     const token = req.headers.cookie.split('=')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decodedToken.userId;
 
     try {
+
+        const requestResult = await addRequestToUser(userId, decodedToken.email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+
         // Retrieve user's API calls left from the database
         const { data: apiCalls } = await supabase
             .from('api_calls')
@@ -131,6 +258,14 @@ app.get('/api-calls', async (req, res) => {
 });
 
 app.post('/password-recovery', async (req, res) => {
+
+    const methodCallResult = await updateMethodCall('POST', '/password-recovery');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email } = req.body;
 
     try {
@@ -169,6 +304,13 @@ app.post('/password-recovery', async (req, res) => {
 
 
 app.post('/verify-code', async (req, res) => {
+    const methodCallResult = await updateMethodCall('POST', '/verify-code');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email, code } = req.body;
 
     try {
@@ -195,6 +337,13 @@ app.post('/verify-code', async (req, res) => {
 
 
 app.patch('/reset-password', async (req, res) => {
+    const methodCallResult = await updateMethodCall('PATCH', '/reset-password');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email, code, newPassword } = req.body;
 
     try {
@@ -227,6 +376,13 @@ app.patch('/reset-password', async (req, res) => {
 });
 
 app.delete('/delete-row', async (req, res) => {
+    const methodCallResult = await updateMethodCall('DELETE', '/delete-row');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     const { email } = req.body;
 
     try {
@@ -258,6 +414,9 @@ app.get('/admin', async (req, res) => {
     const userId = decodedToken.userId;
 
     try {
+        decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        userId = decodedToken.userId;
+
         // Check if the user is an admin
         const { data: user, error } = await supabase
             .from('users')
@@ -282,7 +441,25 @@ app.get('/admin', async (req, res) => {
             throw new Error('Error retrieving API calls data');
         }
 
-        // Fetch usernames for each user ID
+        // Retrieve data from user_total_call table
+        const { data: allUserTotalCalls, error: userTotalCallsError } = await supabase
+            .from('user_total_call')
+            .select('*');
+
+        if (userTotalCallsError) {
+            throw new Error('Error retrieving user total calls data');
+        }
+
+        // Retrieve data from method_call table
+        const { data: allMethodCalls, error: methodCallsError } = await supabase
+            .from('method_call')
+            .select('*');
+
+        if (methodCallsError) {
+            throw new Error('Error retrieving method calls data');
+        }
+
+        // Fetch usernames for each user ID in the API calls data
         const apiCallsWithUsernames = await Promise.all(
             allApiCalls.map(async (apiCall) => {
                 const { data: userData, error: userError } = await supabase
@@ -302,15 +479,39 @@ app.get('/admin', async (req, res) => {
             })
         );
 
-        res.status(200).json({ apiCalls: apiCallsWithUsernames });
+        // Structure the response as a JSON object
+        const response = {
+            apiCalls: apiCallsWithUsernames,
+            totalCalls: allUserTotalCalls,
+            methodCalls: allMethodCalls
+        };
+
+        console.log('Response:', response);
+
+        // Update the total request count for the user
+        const requestResult = await addRequestToUser(userId, decodedToken.email);
+        if (requestResult.error) {
+            console.error('Error updating user request count:', requestResult.error);
+            // Decide how you want to handle this error
+        }
+        res.status(200).json(response);
     } catch (error) {
-        console.error('Error retrieving API calls:', error.message);
+        console.error('Error:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
 
+
+
 // PATCH route to decrement user's API calls by one
 app.patch('/v1/api-calls-down', async (req, res) => {
+    const methodCallResult = await updateMethodCall('PATCH', '/v1/api-calls-down');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     // Check if the user is logged in as an admin
     const token = req.headers.cookie.split('=')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
@@ -357,6 +558,13 @@ app.patch('/v1/api-calls-down', async (req, res) => {
 
 // GET endpoint to serve the index.html file
 app.get('/v1/docs', (req, res) => {
+    const methodCallResult = updateMethodCall('GET', '/v1/docs');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
     res.sendFile(path.join(__dirname, 'html', 'index.html'));
 });
 
