@@ -25,21 +25,10 @@ app.use(bodyParser.json());
 // Allow CORS for specified origins
 app.use(cors({
     origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app'],
-    credentials: true
+    credentials: true,
+    exposedHeaders: ["set-cookie"]
 }));
 
-// const extractTokenFromCookie = (req, res, next) => {
-//     if (req.cookies && req.cookies.token) {
-//         req.headers.authorization = `Bearer ${req.cookies.token}`;
-//         console.log('Token extracted from cookie:', req.cookies.token);
-//     } else {
-//         console.log('No token found in cookies');
-//     }
-//     next();
-// };
-
-
-// app.use(extractTokenFromCookie);
 
 const updateMethodCall = async (method, endpoint) => {
     try {
@@ -185,19 +174,24 @@ app.post('/login', async (req, res) => {
             .single();
 
         if (error) {
-            return res.status(500).json({ error: 'Error retrieving user from database' });
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Error retrieving user from database' }));
         }
 
         // If user doesn't exist or password is incorrect
         if (!users || !(await bcrypt.compare(password, users.password))) {
-            return res.status(401).json({ error: 'Invalid email or password' });
+            res.writeHead(401, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Invalid email or password' }));
         }
 
         // Generate JWT token
         const token = jwt.sign({ userId: users.id }, process.env.JWT_SECRET, { expiresIn: '1h' });
 
         // Set the token as a cookie
-        res.cookie('token', token, { httpOnly: true, sameSite: 'None', secure: true, path: '/' });
+        res.writeHead(200, {
+            'Set-Cookie': `token=${token}; HttpOnly; SameSite=None; Secure;`,
+            'Content-Type': 'application/json',
+          });
 
         const methodCallResult = await updateMethodCall('POST', '/login');
 
@@ -214,12 +208,15 @@ app.post('/login', async (req, res) => {
         }
 
         // If login successful
-        res.status(200).json({ message: 'Login successful', userId: users.id, role: users.role, token: token });
+        res.end(JSON.stringify({ message: 'Login successful', userId: users.id, role: users.role, token: token}));
     } catch (error) {
         console.error('Error logging in user:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal server error' }));
     }
 });
+
+
 
 
 // GET route to retrieve user's API calls left
@@ -233,17 +230,12 @@ app.get('/api-calls', async (req, res) => {
     }
 
 
-    // Check if authorization header is present
-    if (!req.headers.authorization) {
-        return res.status(401).json({ error: 'Authorization header is missing' });
-    }
-
     // Get user ID from JWT token
-    const token = req.headers.authorization.split(' ')[1];
-    // Verify the token and extract the user ID
+    const token = req.headers.cookie.split('=')[1];
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.userId;
+
     try {
-        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-        const userId = decodedToken.userId;
 
         const requestResult = await addRequestToUser(userId, decodedToken.email);
         if (requestResult.error) {
@@ -260,11 +252,10 @@ app.get('/api-calls', async (req, res) => {
 
         res.status(200).json({ calls: apiCalls.calls });
     } catch (error) {
-        console.error('Error:', error.message);
+        console.error('Error retrieving API calls:', error.message);
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 
 app.post('/password-recovery', async (req, res) => {
 
@@ -418,13 +409,9 @@ app.delete('/delete-row', async (req, res) => {
 // GET route to retrieve all users' API calls data (accessible only to admin)
 app.get('/admin', async (req, res) => {
     // Check if the user is logged in as an admin
-    if (!req.headers.authorization) {
-        return res.status(401).json({ error: 'Authorization header is missing' });
-    }
-
-    const token = req.headers.authorization.split(' ')[1];
-    let decodedToken;
-    let userId;
+    const token = req.headers.cookie.split('=')[1];
+    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decodedToken.userId;
 
     try {
         decodedToken = jwt.verify(token, process.env.JWT_SECRET);
@@ -526,7 +513,7 @@ app.patch('/v1/api-calls-down', async (req, res) => {
     }
 
     // Check if the user is logged in as an admin
-    const token = req.headers.authorization.split(' ')[1];
+    const token = req.headers.cookie.split('=')[1];
     const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
     const userId = decodedToken.userId;
 
