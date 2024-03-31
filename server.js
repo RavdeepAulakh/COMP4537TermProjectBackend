@@ -139,8 +139,24 @@ app.post('/v1/login', async (req, res) => {
     }
 });
 
+app.post('/v1/logout', (req, res) => {
+    console.log('Logging out');
 
+    try {
+        // Set the token cookie to an empty value with an immediate expiration date
+        res.writeHead(200, {
+            'Set-Cookie': 'token=; HttpOnly; SameSite=None; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
+            'Content-Type': 'application/json',
+        });
 
+        // Send a response indicating logout was successful
+        res.end(JSON.stringify({ message: 'Logout successful' }));
+    } catch (error) {
+        console.error('Error logging out user:', error.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Internal server error' }));
+    }
+});
 
 
 // GET route to retrieve user's API calls left
