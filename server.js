@@ -245,15 +245,16 @@ app.post('/v1/password-recovery', async (req, res) => {
 
 
 app.post('/v1/verify-code', async (req, res) => {
+    const methodCallResult = await updateMethodCall('POST', '/v1/verify-code');
+
+    if (methodCallResult.error) {
+        console.error('Error updating method call:', methodCallResult.error);
+        // Decide how you want to handle this error
+    }
+
+    const { email, code } = req.body;
+
     try {
-        const methodCallResult = await updateMethodCall('POST', '/v1/verify-code');
-        if (methodCallResult.error) {
-            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
-            // Decide how you want to handle this error
-        }
-
-        const { email, code } = req.body;
-
         // Retrieve the user and their reset code
         const { data: userCode, error } = await supabase
             .from('reset_password')
@@ -261,19 +262,17 @@ app.post('/v1/verify-code', async (req, res) => {
             .eq('email', email)
             .single();
 
-        if (error) {
-            throw new Error(messages.errorVerifyingCode);
-        }
+        
 
-        if (userCode.reset_code !== code) {
-            return res.status(401).json({ message: messages.invalidCode, success: false });
+        if (userCode.reset_code != code) {
+            return res.status(401).json({ message: 'Invalid code', success: false });
         }
-
-        res.json({ message: messages.codeVerifiedSuccessfully, success: true });
+        
+        res.json({ message: 'Code verified successfully!', success: true });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: messages.errorVerifyingCode, success: false });
+        res.status(500).json({ message: 'Error verifying code', success: false });
     }
 });
 
