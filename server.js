@@ -148,6 +148,7 @@ app.post('/v1/logout', (req, res) => {
         res.writeHead(200, {
             'Set-Cookie': 'token=; HttpOnly; SameSite=None; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
             'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': 'https://comp4537termproject.netlify.app'
         });
 
         // Send a response indicating logout was successful
