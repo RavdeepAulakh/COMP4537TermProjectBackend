@@ -114,6 +114,7 @@ app.post('/v1/login', async (req, res) => {
         res.writeHead(200, {
             'Set-Cookie': `token=${token}; HttpOnly; SameSite=None; Secure;`,
             'Content-Type': 'application/json',
+            'Access-Control-Allow-Origin': 'https://comp4537termproject.netlify.app'
         });
 
         const methodCallResult = await updateMethodCall('POST', '/v1/login');
