@@ -114,7 +114,6 @@ app.post('/v1/login', async (req, res) => {
         res.writeHead(200, {
             'Set-Cookie': `token=${token}; HttpOnly; SameSite=None; Secure;`,
             'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': 'https://comp4537termproject.netlify.app'
         });
 
         const methodCallResult = await updateMethodCall('POST', '/v1/login');
@@ -143,10 +142,17 @@ app.post('/v1/login', async (req, res) => {
 app.post('/v1/logout', (req, res) => {
     console.log('Logging out');
 
+    const allowedOrigins = ['https://comp4537termproject.netlify.app', 'http://localhost:3000'];
+    const origin = req.headers.origin;
+
     try {
         // Set the token cookie to an empty value with an immediate expiration date
         res.setHeader('Set-Cookie', 'token=; HttpOnly; SameSite=None; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
-        res.setHeader('Access-Control-Allow-Origin', 'https://comp4537termproject.netlify.app');
+
+        // Check if the request's origin is in the allowedOrigins array and set the Access-Control-Allow-Origin header accordingly
+        if (allowedOrigins.includes(origin)) {
+            res.setHeader('Access-Control-Allow-Origin', origin);
+        }
 
         // Send a response indicating logout was successful
         res.status(200).json({ message: 'Logout successful' });
@@ -155,6 +161,7 @@ app.post('/v1/logout', (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 
 
