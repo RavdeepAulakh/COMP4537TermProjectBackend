@@ -145,20 +145,17 @@ app.post('/v1/logout', (req, res) => {
 
     try {
         // Set the token cookie to an empty value with an immediate expiration date
-        res.writeHead(200, {
-            'Set-Cookie': 'token=; HttpOnly; SameSite=None; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT',
-            'Content-Type': 'application/json',
-            'Access-Control-Allow-Origin': 'https://comp4537termproject.netlify.app'
-        });
+        res.setHeader('Set-Cookie', 'token=; HttpOnly; SameSite=None; Secure; Expires=Thu, 01 Jan 1970 00:00:00 GMT');
+        res.setHeader('Access-Control-Allow-Origin', 'https://comp4537termproject.netlify.app');
 
         // Send a response indicating logout was successful
-        res.end(JSON.stringify({ message: 'Logout successful' }));
+        res.status(200).json({ message: 'Logout successful' });
     } catch (error) {
         console.error('Error logging out user:', error.message);
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Internal server error' }));
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
+
 
 
 // GET route to retrieve user's API calls left
