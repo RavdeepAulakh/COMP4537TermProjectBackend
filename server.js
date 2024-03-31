@@ -16,6 +16,7 @@ const app = express();
 const supabaseUrl = 'https://eiwoxrdrysltelcwznyl.supabase.co'; // Your Supabase URL
 const supabaseKey = process.env.SUPABASE_KEY; // Your Supabase Key
 const supabase = createClient(supabaseUrl, supabaseKey);
+const messages = require('./messages/en/strings.js');
 
 app.use(cookieParser());
 
@@ -25,7 +26,7 @@ app.use(bodyParser.json());
 
 // Allow CORS for specified origins
 app.use(cors({
-    origin: ['http://localhost:3000', 'https://comp4537termproject.netlify.app'],
+    origin: ['https://comp4537termproject.netlify.app'],
     credentials: true,
     exposedHeaders: ["set-cookie"]
 }));
@@ -43,7 +44,7 @@ app.post('/v1/signup', async (req, res) => {
             .single();
 
         if (existingUser) {
-            return res.status(400).json({ error: 'User already exists' });
+            return res.status(400).json({ error: messages.userAlreadyExists });
         }
 
         // Hash the password
@@ -60,7 +61,7 @@ app.post('/v1/signup', async (req, res) => {
         ]);
 
         if (roleError) {
-            throw new Error('Error assigning role to user');
+            throw new Error(messages.errorAssigningRole);
         }
 
         // Insert initial api_calls record for the user
@@ -75,10 +76,10 @@ app.post('/v1/signup', async (req, res) => {
             // Decide how you want to handle this error
         }
 
-        res.status(201).json({ message: 'User signed up successfully' });
+        res.status(201).json({ message: messages.signUpSuccess });
     } catch (error) {
         console.error('Error signing up user:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: messages.internalServerError });
     }
 });
 
@@ -98,13 +99,13 @@ app.post('/v1/login', async (req, res) => {
 
         if (error) {
             res.writeHead(500, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Error retrieving user from database' }));
+            return res.end(JSON.stringify({ error: messages.errorRetrievingUser }));
         }
 
         // If user doesn't exist or password is incorrect
         if (!user || !(await bcrypt.compare(password, user.password))) {
             res.writeHead(401, { 'Content-Type': 'application/json' });
-            return res.end(JSON.stringify({ error: 'Invalid email or password' }));
+            return res.end(JSON.stringify({ error: messages.invalidEmailOrPassword }));
         }
 
         // Generate JWT token
@@ -131,18 +132,19 @@ app.post('/v1/login', async (req, res) => {
         }
 
         // If login successful
-        res.end(JSON.stringify({ message: 'Login successful', userId: user.id, role: user.users_role.role, token: token}));
+        res.end(JSON.stringify({ message: messages.loginSuccess, userId: user.id, role: user.users_role.role, token: token}));
     } catch (error) {
         console.error('Error logging in user:', error.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Internal server error' }));
+        res.end(JSON.stringify({ error: messages.internalServerError }));
     }
 });
 
+// POST route for logout
 app.post('/v1/logout', (req, res) => {
     console.log('Logging out');
 
-    const allowedOrigins = ['https://comp4537termproject.netlify.app', 'http://localhost:3000'];
+    const allowedOrigins = ['https://comp4537termproject.netlify.app'];
     const origin = req.headers.origin;
 
     try {
@@ -155,10 +157,10 @@ app.post('/v1/logout', (req, res) => {
         }
 
         // Send a response indicating logout was successful
-        res.status(200).json({ message: 'Logout successful' });
+        res.status(200).json({ message: messages.logoutSuccess });
     } catch (error) {
         console.error('Error logging out user:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: messages.internalServerError });
     }
 });
 
@@ -167,25 +169,21 @@ app.post('/v1/logout', (req, res) => {
 
 // GET route to retrieve user's API calls left
 app.get('/v1/api-calls', async (req, res) => {
-
-    const methodCallResult = await updateMethodCall('GET', '/v1/api-calls');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-
-    // Get user ID from JWT token
-    const token = req.headers.cookie.split('=')[1];
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decodedToken.userId;
-
     try {
+        const methodCallResult = await updateMethodCall('GET', '/v1/api-calls');
+        if (methodCallResult.error) {
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        // Get user ID from JWT token
+        const token = req.headers.cookie.split('=')[1];
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decodedToken.userId;
 
         const requestResult = await addRequestToUser(userId, decodedToken.email);
         if (requestResult.error) {
-            console.error('Error updating user request count:', requestResult.error);
+            console.error(messages.errorUpdatingUserRequestCount, requestResult.error);
             // Decide how you want to handle this error
         }
 
@@ -198,68 +196,64 @@ app.get('/v1/api-calls', async (req, res) => {
 
         res.status(200).json({ calls: apiCalls.calls });
     } catch (error) {
-        console.error('Error retrieving API calls:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error(messages.errorRetrievingAPICalls, error.message);
+        res.status(500).json({ error: messages.internalServerError });
     }
 });
 
 app.post('/v1/password-recovery', async (req, res) => {
-
-    const methodCallResult = await updateMethodCall('POST', '/v1/password-recovery');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-    const { email } = req.body;
-
     try {
+        const methodCallResult = await updateMethodCall('POST', '/v1/password-recovery');
+        if (methodCallResult.error) {
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const { email } = req.body;
+
         const { data: user, error } = await supabase
             .from('users')
             .select('id')
             .eq('email', email)
             .single();
         if (error) {
-            throw new Error('Error retrieving user from database');
+            throw new Error(messages.errorRetrievingUser);
         }
 
         if (!user) {
-            return res.status(404).json({ message: 'Email not registered', success: false });
+            return res.status(404).json({ message: messages.emailNotRegistered, success: false });
         }
 
         const code = Math.floor(100000 + Math.random() * 900000);
 
         // Update the user's recovery_code in the database
         const { error: insertError } = await supabase
-        .from('reset_password')
-        .upsert(
-            [{ email: email, reset_code: code }],
-            { onConflict: ['email'], ignoreDuplicates: false }
-        );
-    
+            .from('reset_password')
+            .upsert(
+                [{ email: email, reset_code: code }],
+                { onConflict: ['email'], ignoreDuplicates: false }
+            );
 
         await sendEmail(email, code);
 
-        res.json({ message: 'Email sent successfully!', success: true });
+        res.json({ message: messages.emailSentSuccessfully, success: true });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error sending email', success: false });
+        res.status(500).json({ message: messages.errorSendingEmail, success: false });
     }
 });
 
 
 app.post('/v1/verify-code', async (req, res) => {
-    const methodCallResult = await updateMethodCall('POST', '/v1/verify-code');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-    const { email, code } = req.body;
-
     try {
+        const methodCallResult = await updateMethodCall('POST', '/v1/verify-code');
+        if (methodCallResult.error) {
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const { email, code } = req.body;
+
         // Retrieve the user and their reset code
         const { data: userCode, error } = await supabase
             .from('reset_password')
@@ -267,32 +261,33 @@ app.post('/v1/verify-code', async (req, res) => {
             .eq('email', email)
             .single();
 
-        
-
-        if (userCode.reset_code != code) {
-            return res.status(401).json({ message: 'Invalid code', success: false });
+        if (error) {
+            throw new Error(messages.errorVerifyingCode);
         }
-        
-        res.json({ message: 'Code verified successfully!', success: true });
+
+        if (userCode.reset_code !== code) {
+            return res.status(401).json({ message: messages.invalidCode, success: false });
+        }
+
+        res.json({ message: messages.codeVerifiedSuccessfully, success: true });
 
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error verifying code', success: false });
+        res.status(500).json({ message: messages.errorVerifyingCode, success: false });
     }
 });
 
 
 app.patch('/v1/reset-password', async (req, res) => {
-    const methodCallResult = await updateMethodCall('PATCH', '/v1/reset-password');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-    const { email, code, newPassword } = req.body;
-
     try {
+        const methodCallResult = await updateMethodCall('PATCH', '/v1/reset-password');
+        if (methodCallResult.error) {
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const { email, code, newPassword } = req.body;
+
         // Retrieve the user and their recovery code
         const { data: user, error } = await supabase
             .from('users')
@@ -300,6 +295,9 @@ app.patch('/v1/reset-password', async (req, res) => {
             .eq('email', email)
             .single();
 
+        if (error) {
+            throw new Error(messages.errorResettingPassword);
+        }
 
         // Hash the new password
         const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -311,27 +309,26 @@ app.patch('/v1/reset-password', async (req, res) => {
             .eq('id', user.id);
 
         if (updateError) {
-            throw new Error('Unable to update password');
+            throw new Error(messages.unableToUpdatePassword);
         }
 
-        res.json({ message: 'Password has been reset successfully', success: true });
+        res.json({ message: messages.passwordResetSuccessfully, success: true });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error resetting password', success: false });
+        res.status(500).json({ message: messages.errorResettingPassword, success: false });
     }
 });
 
 app.delete('/v1/delete-row', async (req, res) => {
-    const methodCallResult = await updateMethodCall('DELETE', '/v1/delete-row');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-    const { email } = req.body;
-
     try {
+        const methodCallResult = await updateMethodCall('DELETE', '/v1/delete-row');
+        if (methodCallResult.error) {
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const { email } = req.body;
+
         // Delete the user's recovery code from the database
         const { error: deleteError } = await supabase
             .from('reset_password')
@@ -339,29 +336,22 @@ app.delete('/v1/delete-row', async (req, res) => {
             .eq('email', email);
 
         if (deleteError) {
-            throw new Error('Unable to delete recovery code');
+            throw new Error(messages.unableToDeleteRecoveryCode);
         }
 
-        res.json({ message: 'Row deleted successfully', success: true });
+        res.json({ message: messages.rowDeletedSuccessfully, success: true });
     } catch (error) {
         console.error(error);
-        res.status(500).json({ message: 'Error deleting row', success: false });
+        res.status(500).json({ message: messages.errorDeletingRow, success: false });
     }
 });
 
-
-
-
-// GET route to retrieve all users' API calls data (accessible only to admin)
 app.get('/v1/admin', async (req, res) => {
-    // Check if the user is logged in as an admin
-    const token = req.headers.cookie.split('=')[1];
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decodedToken.userId;
-
     try {
+        const token = req.headers.cookie.split('=')[1];
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decodedToken.userId;
 
-        // Check if the user is an admin
         const { data: userRole, error } = await supabase
             .from('users')
             .select('users_role(role)')
@@ -369,41 +359,37 @@ app.get('/v1/admin', async (req, res) => {
             .single();
 
         if (error) {
-            throw new Error('Error retrieving user information');
+            throw new Error(messages.errorRetrievingUserInfo);
         }
 
         if (!userRole || userRole.users_role.role !== 'ADMIN') {
-            return res.status(403).json({ error: 'Unauthorized access' });
+            return res.status(403).json({ error: messages.unauthorizedAccess });
         }
 
-        // Retrieve all users' API calls data from the database
         const { data: allApiCalls, error: apiCallsError } = await supabase
             .from('api_calls')
             .select('user_id, calls');
 
         if (apiCallsError) {
-            throw new Error('Error retrieving API calls data');
+            throw new Error(messages.errorRetrievingAPICallsData);
         }
 
-        // Retrieve data from user_total_call table
         const { data: allUserTotalCalls, error: userTotalCallsError } = await supabase
             .from('user_total_call')
             .select('*');
 
         if (userTotalCallsError) {
-            throw new Error('Error retrieving user total calls data');
+            throw new Error(messages.errorRetrievingUserTotalCallsData);
         }
 
-        // Retrieve data from method_call table
         const { data: allMethodCalls, error: methodCallsError } = await supabase
             .from('method_call')
             .select('*');
 
         if (methodCallsError) {
-            throw new Error('Error retrieving method calls data');
+            throw new Error(messages.errorRetrievingMethodCallsData);
         }
 
-        // Fetch usernames for each user ID in the API calls data
         const apiCallsWithUsernames = await Promise.all(
             allApiCalls.map(async (apiCall) => {
                 const { data: userData, error: userError } = await supabase
@@ -413,7 +399,7 @@ app.get('/v1/admin', async (req, res) => {
                     .single();
 
                 if (userError) {
-                    throw new Error('Error retrieving username');
+                    throw new Error(messages.errorRetrievingUsername);
                 }
 
                 return {
@@ -423,7 +409,6 @@ app.get('/v1/admin', async (req, res) => {
             })
         );
 
-        // Structure the response as a JSON object
         const response = {
             apiCalls: apiCallsWithUsernames,
             totalCalls: allUserTotalCalls,
@@ -432,7 +417,6 @@ app.get('/v1/admin', async (req, res) => {
 
         console.log('Response:', response);
 
-        // Update the total request count for the user
         const requestResult = await addRequestToUser(userId, decodedToken.email);
         if (requestResult.error) {
             console.error('Error updating user request count:', requestResult.error);
@@ -442,34 +426,30 @@ app.get('/v1/admin', async (req, res) => {
         const methodCallResult = await updateMethodCall('GET', '/v1/admin');
 
         if (methodCallResult.error) {
-            console.error('Error updating method call:', methodCallResult.error);
+            console.error(messages.errorUpdatingMethodCall, methodCallResult.error);
             // Decide how you want to handle this error
         }
+
         res.status(200).json(response);
     } catch (error) {
         console.error('Error:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: messages.internalServerError });
     }
 });
 
-
-
-// PATCH route to decrement user's API calls by one
 app.patch('/v1/api-calls-down', async (req, res) => {
-    const methodCallResult = await updateMethodCall('PATCH', '/v1/api-calls-down');
-
-    if (methodCallResult.error) {
-        console.error('Error updating method call:', methodCallResult.error);
-        // Decide how you want to handle this error
-    }
-
-    // Check if the user is logged in as an admin
-    const token = req.headers.cookie.split('=')[1];
-    const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
-    const userId = decodedToken.userId;
-
     try {
-        // Retrieve user's current API calls count from the database
+        const methodCallResult = await updateMethodCall('PATCH', '/v1/api-calls-down');
+
+        if (methodCallResult.error) {
+            console.error('Error updating method call:', methodCallResult.error);
+            // Decide how you want to handle this error
+        }
+
+        const token = req.headers.cookie.split('=')[1];
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const userId = decodedToken.userId;
+
         const { data: userData, error } = await supabase
             .from('api_calls')
             .select('calls')
@@ -477,31 +457,28 @@ app.patch('/v1/api-calls-down', async (req, res) => {
             .single();
 
         if (error) {
-            throw new Error('Error retrieving user data');
+            throw new Error(messages.errorRetrievingUserData);
         }
 
-        // Check if the user has any API calls left
         if (userData.calls === 0) {
-            return res.status(403).json({ error: 'No API calls left' });
+            return res.status(403).json({ error: messages.noAPICallsLeft });
         }
 
-        // Decrement API calls count by one
         const newCallsCount = userData.calls - 1;
 
-        // Update user's API calls count in the database
         const { updateError } = await supabase
             .from('api_calls')
             .update({ calls: newCallsCount })
             .eq('user_id', userId);
 
         if (updateError) {
-            throw new Error('Error updating API calls count');
+            throw new Error(messages.errorUpdatingAPICallsCount);
         }
 
         res.status(200).json({ message: 'API calls decremented successfully' });
     } catch (error) {
         console.error('Error decrementing API calls:', error.message);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ error: messages.internalServerError });
     }
 });
 
